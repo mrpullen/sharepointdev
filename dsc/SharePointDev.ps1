@@ -445,7 +445,6 @@ BROWSERSVCSTARTUPTYPE="Disabled"
         }
         #>
 
-        $databaseServer = "$($env:COMPUTERNAME).$($env:USERDNSDOMAIN)"
         xSQLServerMaxDop SetMAXDOP {
             Ensure          = "Present"
             SQLInstanceName = "SP"
