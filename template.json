@@ -78,23 +78,21 @@
         },
 
         "networkSecurityGroupName": "[concat(toLower(parameters('virtualMachineName')),'-nsg')]",
-        "networkSecurityGroupRules": {
-            "value": [
-                {
-                    "name": "RDP",
-                    "properties": {
-                        "priority": 300,
-                        "protocol": "TCP",
-                        "access": "Allow",
-                        "direction": "Inbound",
-                        "sourceAddressPrefix": "*",
-                        "sourcePortRange": "*",
-                        "destinationAddressPrefix": "*",
-                        "destinationPortRange": "3389"
-                    }
+        "networkSecurityGroupRules": [
+            {
+                "name": "RDP",
+                "properties": {
+                    "priority": 300,
+                    "protocol": "TCP",
+                    "access": "Allow",
+                    "direction": "Inbound",
+                    "sourceAddressPrefix": "*",
+                    "sourcePortRange": "*",
+                    "destinationAddressPrefix": "*",
+                    "destinationPortRange": "3389"
                 }
-            ]
-        },
+            }
+        ],
         "networkInterfaceName": "[concat(toLower(parameters('virtualMachineName')),'-nic')]",
         "publicIpAddressName": "[concat(toLower(parameters('virtualMachineName')),'-pubnic')]",
         "publicIpAddressSku": "Basic",
@@ -190,7 +188,7 @@
                     }
                 ],
                 "networkSecurityGroup": {
-                    "id": "[resourceId('Microsoft.Network/networkSecnetworkSecurityGroups', variables('networkSecurityGroupName'))]"
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
                 }
             }
         },
@@ -241,79 +239,80 @@
                         "enabled": true,
                         "storageUri": "[concat('https://', variables('diagnosticsStorageAccountName'), '.blob.core.windows.net/')]"
                     }
-                },
-                "resources": [
-                    {
-                        "type": "Microsoft.Compute/virtualMachines/extensions",
-                        "name": "Microsoft.Powershell.DSC",
-                        "apiVersion": "2018-06-30",
-                        "location": "[resourceGroup().location]",
-                        "dependsOn": [
-                            "[concat('Microsoft.Compute/virtualMachines/', parameters('virtualMachineName'))]"
-                        ],
-                        "properties": {
-                            "publisher": "Microsoft.Powershell",
-                            "type": "DSC",
-                            "typeHandlerVersion": "2.77",
-                            "autoUpgradeMinorVersion": true,
-                            "settings": {
-                                "wmfVersion": "latest",
-                                "configuration": {
-                                    "url": "[variables('dscConfiguration')['scriptFileUri']]",
-                                    "script": "[variables('dscConfiguration')['script']]",
-                                    "function": "[variables('dscConfiguration')['function']]"
-                                },
-                                "configurationArguments": {
-                                    "domainName": "[parameters('domainName')]"
-                                },
-                                "configurationData": {
-                                    "url": "[variables('dscConfiguration')['configuration']]"
-                                },
-                                "privacy": {
-                                    "dataCollection": "enable"
-                                }
+                }
+            },
+            "resources": [
+                {
+                    "type": "extensions",
+                    "name": "Microsoft.Powershell.DSC",
+                    "apiVersion": "2019-07-01",
+                    "location": "[resourceGroup().location]",
+                    "dependsOn": [
+                        "[concat('Microsoft.Compute/virtualMachines/', parameters('virtualMachineName'))]"
+                    ],
+                    "properties": {
+                        "publisher": "Microsoft.Powershell",
+                        "type": "DSC",
+                        "typeHandlerVersion": "2.77",
+                        "autoUpgradeMinorVersion": true,
+                        "settings": {
+                            "wmfVersion": "latest",
+                            "configuration": {
+                                "url": "[variables('dscConfiguration')['scriptFileUri']]",
+                                "script": "[variables('dscConfiguration')['script']]",
+                                "function": "[variables('dscConfiguration')['function']]"
                             },
-                            "protectedSettings": {
-                                "configurationArguments": {
-                                    "DomainCredential": {
-                                        "userName": "[parameters('adminUsername')]",
-                                        "password": "[parameters('adminPassword')]"
-                                    },
-                                    "FarmAccount": {
-                                        "userName": "sa-spfarm",
-                                        "password": "[parameters('adminPassword')]"
-                                    },
-                                    "SPSetupAccount": {
-                                        "userName": "sa-spsetup",
-                                        "password": "[parameters('adminPassword')]"
-                                    },
-                                    "WebPoolManagedAccount": {
-                                        "userName": "sa-spweb",
-                                        "password": "[parameters('adminPassword')]"
-                                    },
-                                    "ServicePoolManagedAccount": {
-                                        "userName": "sa-spsvc",
-                                        "password": "[parameters('adminPassword')]"
-                                    },
-                                    "SQLServerAccount": {
-                                        "userName": "sa-spweb",
-                                        "password": "[parameters('adminPassword')]"
-                                    },
-                                    "Passphrase": {
-                                        "userName": "sppp",
-                                        "password": "[parameters('adminPassword')]"
-                                    },
-                                    "safeModePassword": {
-                                        "userName": "smp",
-                                        "password": "[parameters('adminPassword')]"
-                                    }
+                            "configurationArguments": {
+                                "domainName": "[parameters('domainName')]"
+                            },
+                            "configurationData": {
+                                "url": "[variables('dscConfiguration')['configuration']]"
+                            },
+                            "privacy": {
+                                "dataCollection": "enable"
+                            }
+                        },
+                        "protectedSettings": {
+                            "configurationArguments": {
+                                "DomainCredential": {
+                                    "userName": "[parameters('adminUsername')]",
+                                    "password": "[parameters('adminPassword')]"
+                                },
+                                "FarmAccount": {
+                                    "userName": "sa-spfarm",
+                                    "password": "[parameters('adminPassword')]"
+                                },
+                                "SPSetupAccount": {
+                                    "userName": "sa-spsetup",
+                                    "password": "[parameters('adminPassword')]"
+                                },
+                                "WebPoolManagedAccount": {
+                                    "userName": "sa-spweb",
+                                    "password": "[parameters('adminPassword')]"
+                                },
+                                "ServicePoolManagedAccount": {
+                                    "userName": "sa-spsvc",
+                                    "password": "[parameters('adminPassword')]"
+                                },
+                                "SQLServerAccount": {
+                                    "userName": "sa-spweb",
+                                    "password": "[parameters('adminPassword')]"
+                                },
+                                "Passphrase": {
+                                    "userName": "sppp",
+                                    "password": "[parameters('adminPassword')]"
+                                },
+                                "safeModePassword": {
+                                    "userName": "smp",
+                                    "password": "[parameters('adminPassword')]"
                                 }
                             }
                         }
-
                     }
-                ]
-            }
+
+                }
+            ]
+            
         },
         {
             "type": "Microsoft.DevTestLab/schedules",

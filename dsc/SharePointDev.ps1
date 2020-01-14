@@ -13,7 +13,7 @@
         [Parameter(Mandatory=$true)] [ValidateNotNullorEmpty()] [PSCredential] $ServicePoolManagedAccount,
         [Parameter(Mandatory=$true)] [ValidateNotNullorEmpty()] [PSCredential] $Passphrase
     )
-
+    
     Import-DscResource -ModuleName PSDesiredStateConfiguration
     Import-DscResource -ModuleName SharePointDsc
     Import-DscResource -ModuleName ActiveDirectoryDSC
@@ -131,8 +131,6 @@ BROWSERSVCSTARTUPTYPE="Disabled"
             Ensure          = "Present"
         }
 
-        
-
         WindowsFeature ADDSInstall {
             Ensure = 'Present'
             Name = 'AD-Domain-Services'
@@ -149,7 +147,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
             Credential                    = $DomainCredential             
             SafemodeAdministratorPassword = $safeModePassword            
             ForestMode                    = 'WinThreshold'       
-            DependsOn = "[WindowsFeature]ADDSInstall","[File]ADFiles"     
+            DependsOn = "[WindowsFeature]ADDSInstall"     
         }   
         
         $ldapUsersPath = (($DomainName.Split('.') | ForEach-Object { "DC=$($_)" }) -join ",")
