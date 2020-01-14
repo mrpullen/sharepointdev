@@ -276,36 +276,36 @@
                 "protectedSettings": {
                     "configurationArguments": {
                         "DomainCredential": {
-                            "userName": "[parameters('adminUsername')]",
-                            "password": "[parameters('adminPassword')]"
+                            "UserName": "[parameters('adminUsername')]",
+                            "Password": "[parameters('adminPassword')]"
                         },
                         "FarmAccount": {
-                            "userName": "sa-spfarm",
-                            "password": "[parameters('adminPassword')]"
+                            "UserName": "sa-spfarm",
+                            "Password": "[parameters('adminPassword')]"
                         },
                         "SPSetupAccount": {
-                            "userName": "sa-spsetup",
-                            "password": "[parameters('adminPassword')]"
+                            "UserName": "sa-spsetup",
+                            "Password": "[parameters('adminPassword')]"
                         },
                         "WebPoolManagedAccount": {
-                            "userName": "sa-spweb",
-                            "password": "[parameters('adminPassword')]"
+                            "UserName": "sa-spweb",
+                            "Password": "[parameters('adminPassword')]"
                         },
                         "ServicePoolManagedAccount": {
-                            "userName": "sa-spsvc",
-                            "password": "[parameters('adminPassword')]"
+                            "UserName": "sa-spsvc",
+                            "Password": "[parameters('adminPassword')]"
                         },
                         "SQLServerAccount": {
-                            "userName": "sa-spweb",
-                            "password": "[parameters('adminPassword')]"
+                            "UserName": "sa-spsql",
+                            "Password": "[parameters('adminPassword')]"
                         },
                         "Passphrase": {
-                            "userName": "sppp",
-                            "password": "[parameters('adminPassword')]"
+                            "UserName": "sppp",
+                            "Password": "[parameters('adminPassword')]"
                         },
                         "safeModePassword": {
-                            "userName": "smp",
-                            "password": "[parameters('adminPassword')]"
+                            "UserName": "smp",
+                            "Password": "[parameters('adminPassword')]"
                         }
 
                     }
