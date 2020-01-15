@@ -21,7 +21,7 @@
     Import-DscResource -ModuleName xSQLServer
     Import-DscResource -ModuleName SqlServerDsc
     Import-DSCResource -ModuleName NetworkingDsc
-    Import-DSCResource  -ModuleName StorageDsc.\
+    Import-DSCResource  -ModuleName StorageDsc
 
    
 
@@ -361,7 +361,9 @@ NPENABLED="0"
 BROWSERSVCSTARTUPTYPE="Disabled"
 "@
          Set-Item -Path WSMan:\localhost\MaxEnvelopeSizeKb -Value 2048
-        
+        if(-not (Test-Path "C:\config")) {
+            New-Item -Path "C:\" -Name "config" -ItemType "Directory" -Force
+        }
         If(Test-Path "C:\config\configurationFile.ini") {
             Remove-Item -Path "C:\config\configurationFile.ini"
         }
