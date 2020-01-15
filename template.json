@@ -76,7 +76,8 @@
             "configuration": "[uri(variables('artifactsLocation'), concat('dsc/SharePointDev.psd1'))]",
             "forceUpdateTag": "1.0"
         },
-        "domain": "[toUpper(split(parameters('domainName'), '.'))]",
+        "domainParts": "[split(parameters('domainName'), '.')]",
+        "domain": "[toUpper(variables('domainParts')[0])]",
         "usernames": {
             "farmAccount": "[concat(variables('domain'), '\\', 'sa-spfarm')]",
             "setupAccount": "[concat(variables('domain'), '\\', 'sa-spsetup')]",
