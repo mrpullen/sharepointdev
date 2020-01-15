@@ -168,11 +168,10 @@ BROWSERSVCSTARTUPTYPE="Disabled"
         
         $domain = $DomainName.split(".")[0]
 
-
         ADUser SQLAccount {
             DomainName = $domain
-            UserName   = $SQLServerAccount.UserName
-            Password   = $SQLServerAccount
+            UserName   = $SQLServerAccount.UserName.Split("\")[1]
+            Password   = $SQLServerAccountv
             Path       = $ldapServiceAccountPath
             ChangePasswordAtLogon = $false
             PasswordNeverExpires = $true
@@ -184,7 +183,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
 
         ADUser FarmAccount {
             DomainName = $domain
-            UserName   = $FarmAccount.UserName
+            UserName   = $FarmAccount.UserName.Split("\")[1]
             Password   = $FarmAccount
             Path       = $ldapServiceAccountPath
             ChangePasswordAtLogon = $false
@@ -196,7 +195,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
 
         ADUser SPSetupAccount {
             DomainName = $domain
-            UserName   = $SPSetupAccount.UserName
+            UserName   = $SPSetupAccount.UserName.Split("\")[1]
             Password   = $SPSetupAccount
             Path       = $ldapServiceAccountPath
             ChangePasswordAtLogon = $false
@@ -208,7 +207,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
 
         ADUser WebPoolManagedAccount {
             DomainName = $domain
-            UserName   = $WebPoolManagedAccount.UserName
+            UserName   = $WebPoolManagedAccount.UserName.Split("\")[1]
             Password   = $WebPoolManagedAccount
             Path       = $ldapServiceAccountPath
             ChangePasswordAtLogon = $false
@@ -220,7 +219,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
 
         ADUser ServicePoolManagedAccount {
             DomainName = $domain
-            UserName   = $ServicePoolManagedAccount.UserName
+            UserName   = $ServicePoolManagedAccount.UserName.Split("\")[1]
             Password   = $ServicePoolManagedAccount
             Path       = $ldapServiceAccountPath
             ChangePasswordAtLogon = $false
@@ -256,7 +255,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
          ADGroup AddFarmAccountToAdmins
         {
             GroupName   = "Domain Admins"
-            MembersToInclude = @($FarmAccount.UserName, $SPSetupAccount.UserName, $SQLServerAccount.UserName)
+            MembersToInclude = @($FarmAccount.UserName.Split("\")[1], $SPSetupAccount.UserName.Split("\")[1])
             Ensure      = 'Present'
         }
 
@@ -450,8 +449,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
             DynamicAlloc    = $false
             MaxDop          = 1
         }
-        $SetupAccount = New-Object System.Management.Automation.PSCredential("$($domain)\$($SPSetupAccount.UserName)", $SPSetupAccount.Password);
-        
+
         SqlServerNetwork 'ChangeTcpIpOnDefaultInstance'
         {
             InstanceName         = 'MSSQLSERVER'
@@ -460,7 +458,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
             TCPDynamicPort       = $false
             TCPPort              = 1433
             RestartService       = $true
-             PsDscRunAsCredential     = $SetupAccount
+             PsDscRunAsCredential     = $SPSetupAccount
         }
 
         Firewall AddFirewallRule
@@ -495,7 +493,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
             FarmConfigDatabaseName   = "SP_Config"
             Passphrase               = $Passphrase
             FarmAccount              = $FarmAccount
-            PsDscRunAsCredential     = $SetupAccount
+            PsDscRunAsCredential     = $SPSetupAccount
             AdminContentDatabaseName = "SP_AdminContent"
             RunCentralAdmin          = $true
             DependsOn                = @("[ADUser]FarmAccount","[ADUser]SPSetupAccount")
@@ -505,7 +503,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
         {
             AccountName          = $ServicePoolManagedAccount.UserName
             Account              = $ServicePoolManagedAccount
-            PsDscRunAsCredential = $SetupAccount
+            PsDscRunAsCredential = $SPSetupAccount
             DependsOn            = "[SPFarm]CreateSPFarm"
         }
         
@@ -513,14 +511,14 @@ BROWSERSVCSTARTUPTYPE="Disabled"
         {
             AccountName          = $WebPoolManagedAccount.UserName
             Account              = $WebPoolManagedAccount
-            PsDscRunAsCredential = $SetupAccount
+            PsDscRunAsCredential = $SPSetupAccount
             DependsOn            = "[SPFarm]CreateSPFarm"
         }
         
         SPDiagnosticLoggingSettings ApplyDiagnosticLogSettings
         {
             IsSingleInstance                            = "Yes"
-            PsDscRunAsCredential                        = $SetupAccount
+            PsDscRunAsCredential                        = $SPSetupAccount
             LogPath                                     = "C:\ULS"
             LogSpaceInGB                                = 5
             AppAnalyticsAutomaticUploadEnabled          = $false
@@ -549,7 +547,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
             UsageLogCutTime       = 5
             UsageLogLocation      = "C:\UsageLogs"
             UsageLogMaxFileSizeKB = 1024
-            PsDscRunAsCredential  = $SetupAccount
+            PsDscRunAsCredential  = $SPSetupAccount
             DependsOn             = "[SPFarm]CreateSPFarm"
         }
         
@@ -557,7 +555,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
         {
             Name                 = "State Service Application"
             DatabaseName         = "SP_State"
-            PsDscRunAsCredential = $SetupAccount
+            PsDscRunAsCredential = $SPSetupAccount
             DependsOn            = "[SPFarm]CreateSPFarm"
         }
         
@@ -566,8 +564,8 @@ BROWSERSVCSTARTUPTYPE="Disabled"
             Name                 = "AppFabricCachingService"
             Ensure               = "Present"
             CacheSizeInMB        = 1024
-            ServiceAccount       = "$($domain)\$($ServicePoolManagedAccount.UserName)"
-            PsDscRunAsCredential = $SetupAccount
+            ServiceAccount       = $ServicePoolManagedAccount.UserName
+            PsDscRunAsCredential = $SPSetupAccount
             CreateFirewallRules  = $true
             DependsOn            = @('[SPFarm]CreateSPFarm','[SPManagedAccount]ServicePoolManagedAccount')
         }
@@ -586,13 +584,13 @@ BROWSERSVCSTARTUPTYPE="Disabled"
         {
             Name                   = "SharePoint Sites"
             ApplicationPool        = "SharePoint Sites"
-            ApplicationPoolAccount = "$($domain)\$($WebPoolManagedAccount.UserName)"
+            ApplicationPoolAccount = $WebPoolManagedAccount.UserName
             AllowAnonymous         = $false
             DatabaseName           = "SP_Content"
             WebAppUrl              = "$($sharePointUrl)"
             HostHeader             = "$($sharePointHostHeader)"
             Port                   = 80
-            PsDscRunAsCredential   = $SetupAccount
+            PsDscRunAsCredential   = $SPSetupAccount
             DependsOn              = "[SPManagedAccount]WebPoolManagedAccount"
         }
 
@@ -603,17 +601,17 @@ BROWSERSVCSTARTUPTYPE="Disabled"
             WebAppUrl              = "$($sharePointUrl)"
             SuperUserAlias         = "$($domain)\SP_SuperUser"
             SuperReaderAlias       = "$($domain)\SP_SuperReader"
-            PsDscRunAsCredential   = $SetupAccount
+            PsDscRunAsCredential   = $SPSetupAccount
             DependsOn              = "[SPWebApplication]SharePointSites"
         }
 
         SPSite TeamSite
         {
             Url                      = "$($sharePointUrl)"
-            OwnerAlias               = $SetupAccount.UserName
+            OwnerAlias               = $SPSetupAccount.UserName
             Name                     = "DSC Demo Site"
             Template                 = "STS#0"
-            PsDscRunAsCredential     = $SetupAccount
+            PsDscRunAsCredential     = $SPSetupAccount
             DependsOn                = "[SPWebApplication]SharePointSites"
         }
 
@@ -629,7 +627,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
         {
             Name                 = "Claims to Windows Token Service"
             Ensure               = "Present"
-            PsDscRunAsCredential = $SetupAccount
+            PsDscRunAsCredential = $SPSetupAccount
             DependsOn            = "[SPFarm]CreateSPFarm"
         }
 
@@ -637,7 +635,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
         {
             Name                 = "Secure Store Service"
             Ensure               = "Present"
-            PsDscRunAsCredential = $SetupAccount
+            PsDscRunAsCredential = $SPSetupAccount
             DependsOn            = "[SPFarm]CreateSPFarm"
         }
 
@@ -645,7 +643,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
         {
             Name                 = "Managed Metadata Web Service"
             Ensure               = "Present"
-            PsDscRunAsCredential = $SetupAccount
+            PsDscRunAsCredential = $SPSetupAccount
             DependsOn            = "[SPFarm]CreateSPFarm"
         }
 
@@ -653,7 +651,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
         {
             Name                 = "Business Data Connectivity Service"
             Ensure               = "Present"
-            PsDscRunAsCredential = $SetupAccount
+            PsDscRunAsCredential = $SPSetupAccount
             DependsOn            = "[SPFarm]CreateSPFarm"
         }
 
@@ -661,7 +659,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
         {
             Name                 = "SharePoint Server Search"
             Ensure               = "Present"
-            PsDscRunAsCredential = $SetupAccount
+            PsDscRunAsCredential = $SPSetupAccount
             DependsOn            = "[SPFarm]CreateSPFarm"
         }
 
@@ -676,8 +674,8 @@ BROWSERSVCSTARTUPTYPE="Disabled"
         SPServiceAppPool MainServiceAppPool
         {
             Name                 = $serviceAppPoolName
-            ServiceAccount       = "$($domain)\$($ServicePoolManagedAccount.UserName)"
-            PsDscRunAsCredential = $SetupAccount
+            ServiceAccount       = $ServicePoolManagedAccount.UserName
+            PsDscRunAsCredential = $SPSetupAccount
             DependsOn            = "[SPFarm]CreateSPFarm"
         }
 
@@ -688,14 +686,14 @@ BROWSERSVCSTARTUPTYPE="Disabled"
             AuditingEnabled       = $true
             AuditlogMaxSize       = 30
             DatabaseName          = "SP_SecureStore"
-            PsDscRunAsCredential  = $SetupAccount
+            PsDscRunAsCredential  = $SPSetupAccount
             DependsOn             = "[SPServiceAppPool]MainServiceAppPool"
         }
 
         SPManagedMetaDataServiceApp ManagedMetadataServiceApp
         {
             Name                 = "Managed Metadata Service Application"
-            PsDscRunAsCredential = $SetupAccount
+            PsDscRunAsCredential = $SPSetupAccount
             ApplicationPool      = $serviceAppPoolName
             DatabaseName         = "SP_MMS"
             DependsOn            = "[SPServiceAppPool]MainServiceAppPool"
@@ -707,7 +705,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
             ApplicationPool       = $serviceAppPoolName
             DatabaseName          = "SP_BCS"
             DatabaseServer        = "$($SQLServerName)\SP"
-            PsDscRunAsCredential  = $SetupAccount
+            PsDscRunAsCredential  = $SPSetupAccount
             DependsOn             = @('[SPServiceAppPool]MainServiceAppPool', '[SPSecureStoreServiceApp]SecureStoreServiceApp')
         }
 
@@ -716,7 +714,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
             Name                  = "Search Service Application"
             DatabaseName          = "SP_Search"
             ApplicationPool       = $serviceAppPoolName
-            PsDscRunAsCredential  = $SetupAccount
+            PsDscRunAsCredential  = $SPSetupAccount
             DependsOn             = "[SPServiceAppPool]MainServiceAppPool"
         }   
 

@@ -76,6 +76,15 @@
             "configuration": "[uri(variables('artifactsLocation'), concat('dsc/SharePointDev.psd1'))]",
             "forceUpdateTag": "1.0"
         },
+        "domain": "[toUpper(split(parameters('domainName'), '.'))]",
+        "usernames": {
+            "farmAccount": "[concat(variables('domain'), '\\', 'sa-spfarm')]",
+            "setupAccount": "[concat(variables('domain'), '\\', 'sa-spsetup')]",
+            "webPoolManagedAccount": "[concat(variables('domain'), '\\', 'sa-spweb')]",
+            "servicePoolManagedAccount": "[concat(variables('domain'), '\\', 'sa-spsvc')]",
+            "sqlServerAccount": "[concat(variables('domain'), '\\', 'sa-spsql')]",
+            "domainCredential": "[concat(variables('domain'), '\\', parameters('adminUsername'))]"
+        },
 
         "networkSecurityGroupName": "[concat(toLower(parameters('virtualMachineName')),'-nsg')]",
         "networkSecurityGroupRules": [
@@ -276,27 +285,27 @@
                 "protectedSettings": {
                     "configurationArguments": {
                         "DomainCredential": {
-                            "UserName": "[parameters('adminUsername')]",
+                            "UserName": "[variables('usernames').domainCredential]",
                             "Password": "[parameters('adminPassword')]"
                         },
                         "FarmAccount": {
-                            "UserName": "sa-spfarm",
+                            "UserName": "[variables('usernames').farmAccount]",
                             "Password": "[parameters('adminPassword')]"
                         },
                         "SPSetupAccount": {
-                            "UserName": "sa-spsetup",
+                            "UserName":"[variables('usernames').setupAccount]",
                             "Password": "[parameters('adminPassword')]"
                         },
                         "WebPoolManagedAccount": {
-                            "UserName": "sa-spweb",
+                            "UserName": "[variables('usernames').webPoolManagedAccount]",
                             "Password": "[parameters('adminPassword')]"
                         },
                         "ServicePoolManagedAccount": {
-                            "UserName": "sa-spsvc",
+                            "UserName": "[variables('usernames').servicePoolManagedAccount]",
                             "Password": "[parameters('adminPassword')]"
                         },
                         "SQLServerAccount": {
-                            "UserName": "sa-spsql",
+                            "UserName": "[variables('usernames').sqlServerAccount]",
                             "Password": "[parameters('adminPassword')]"
                         },
                         "Passphrase": {
