@@ -208,7 +208,8 @@
             "name": "[parameters('virtualMachineName')]",
             "location": "[resourceGroup().location]",
             "dependsOn": [
-                "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]"
+                "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]",
+                "[resourceId('Microsoft.Storage/sorageAccounts', variables('diagnosticsStorageAccountName'))]"
             ],
             "properties": {
                 "hardwareProfile": {
