@@ -108,9 +108,9 @@
         "publicIpAddressSku": "Basic",
         "publicIpAddressType": "Dynamic",
         "virtualMachineSizes": {
-            "Small": "Standard_E2s_v3",
-            "Medium": "",
-            "Large": ""
+            "Small":  "Standard_E2s_v3",
+            "Medium": "Standard_E4s_v3",
+            "Large":  "Standard_E8s_v3"
         },
         "virtualMachineSize": "[variables('virtualMachineSizes')[parameters('virtualMachineSize')]]"
     },
