@@ -225,7 +225,7 @@
 
             PsDscRunAsCredential  = $SPSetupAccount
 
-            DependsOn             = '[MountImage]MountSQLServerDev2017ISO'
+            DependsOn             = @('[MountImage]MountSQLServerDev2017ISO','[ADUser]SQLAccount')
         }
 
         $SQLServerName = $env:COMPUTERNAME
@@ -271,19 +271,7 @@
             #This will automatically try to upgrade if available, only if a version is not explicitly specified.
             AutoUpgrade = $True
         }
-        <# 
-        #Removed - as it was unreliable
-        cChocoPackageInstaller installSQL2017
-        {
-            Name        = "sql-server-2017"
-            DependsOn   = "[cChocoInstaller]installChoco"
-            Params      = $sqlParams
-            #This will automatically try to upgrade if available, only if a version is not explicitly specified.
-            AutoUpgrade = $True
-            PsDscRunAsCredential = $SPSetupAccount        
-        }
-        #>
-
+       
         cChocoPackageInstaller installVS2017 
         {
             Name        = "visualstudio2017community"
@@ -366,7 +354,7 @@
         cChocoPackageInstaller installVSCodeAzRepos
         {
             Name        = "vscode-azurerepos"
-            DependsOn   = "[cChocoInstaller]installChoco"
+            DependsOn   = @("[cChocoInstaller]installChoco","[cChocoPackageInstaller]installVSCode")
             AutoUpgrade = $true
 
         }
@@ -374,7 +362,7 @@
         cChocoPackageInstaller installVSCodePowerShellExt
         {
             Name        = "vscode-powershell"
-            DependsOn   = "[cChocoInstaller]installChoco"
+            DependsOn   = @("[cChocoInstaller]installChoco","[cChocoPackageInstaller]installVSCode")
             AutoUpgrade = $true
 
         }
@@ -398,15 +386,15 @@
             ImagePath = "C:\config\officeserver.iso"
             DriveLetter = "S"
             Ensure = "Present"
+            DependsOn = "[Script]Download2016ISO"
         }
-
         
          SPInstallPrereqs InstallPrereqs {
             IsSingleInstance  = "Yes"
             Ensure            = "Present"
             InstallerPath     = "S:\prerequisiteinstaller.exe"
             OnlineMode        = $true
-            DependsOn         = @("[MountImage]MountSharePointISO","[ADDomain]CreateDomainController")
+            DependsOn         = @("[MountImage]MountSharePointISO","[ADDomain]CreateDomainController","[ADUser]SPSetupAccount", "[ADUser]FarmAccount", "[ADUser]WebPoolManagedAccount", "[ADUser]ServicePoolManagedAccount")
            
         }
         
@@ -440,7 +428,7 @@
             PsDscRunAsCredential     = $SPSetupAccount
             AdminContentDatabaseName = "SP_AdminContent"
             RunCentralAdmin          = $true
-            DependsOn                = @("[ADUser]FarmAccount","[ADUser]SPSetupAccount")
+            DependsOn                = @("[ADUser]FarmAccount","[ADUser]SPSetupAccount","[SPInstall]InstallSharePoint")
         }
 
         SPManagedAccount ServicePoolManagedAccount
