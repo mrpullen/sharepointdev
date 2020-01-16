@@ -34,12 +34,17 @@
             RebootNodeIfNeeded = $true
 
         }
-
+        Set-Item -Path WSMan:\localhost\MaxEnvelopeSizeKb -Value 2048
+        
+        #region Staging Directories
         File ConfigFiles {
             DestinationPath = "C:\Config"
             Type            = "Directory"
             Ensure          = "Present"
         }
+        #endregion
+
+        #region WindowsFeatures
 
         WindowsFeature ADDSInstall {
             Ensure = 'Present'
@@ -50,6 +55,10 @@
             Ensure = 'Present'
             Name   = 'RSAT-ADDS'
         }
+
+        #endregion
+
+        #region Active Directory
 
         ADDomain CreateDomainController             
         {             
@@ -89,8 +98,6 @@
             Credential = $DomainCredential
             DependsOn = "[ADOrganizationalUnit]ServiceAccounts"
         }
-
-
         ADUser FarmAccount {
             DomainName = $domain
             UserName   = $FarmAccount.UserName.Split("\")[1]
@@ -102,7 +109,6 @@
             Credential = $DomainCredential
             DependsOn = "[ADOrganizationalUnit]ServiceAccounts"
         }
-
         ADUser SPSetupAccount {
             DomainName = $domain
             UserName   = $SPSetupAccount.UserName.Split("\")[1]
@@ -114,7 +120,6 @@
             Credential = $DomainCredential
             DependsOn = "[ADOrganizationalUnit]ServiceAccounts"
         }
-
         ADUser WebPoolManagedAccount {
             DomainName = $domain
             UserName   = $WebPoolManagedAccount.UserName.Split("\")[1]
@@ -126,7 +131,6 @@
             Credential = $DomainCredential
             DependsOn = "[ADOrganizationalUnit]ServiceAccounts"
         }
-
         ADUser ServicePoolManagedAccount {
             DomainName = $domain
             UserName   = $ServicePoolManagedAccount.UserName.Split("\")[1]
@@ -138,7 +142,6 @@
             Credential = $DomainCredential
             DependsOn = "[ADOrganizationalUnit]ServiceAccounts"
         }
-
         ADUser SP_SuperReader {
             DomainName = $domain
             UserName   = "SP_SuperReader"
@@ -169,8 +172,90 @@
             Ensure      = 'Present'
         }
 
-        
+        #endregion
+    
 
+        #region SQLServerInstall
+        Script DownloadSQLServer2017DeveloperISO {
+            
+               GetScript = {
+                @{ Result = (Test-Path "C:\config\SQLServer2017-x64-ENU-Dev.iso")}    
+            }
+            SetScript = {
+                Invoke-WebRequest -OutFile "C:\config\SQLServer2017-x64-ENU-Dev.iso" -Uri "https://download.microsoft.com/download/E/F/2/EF23C21D-7860-4F05-88CE-39AA114B014B/SQLServer2017-x64-ENU-Dev.iso"
+            }
+            TestScript = {
+                Test-Path "C:\config\SQLServer2017-x64-ENU-Dev.iso"
+            }
+        
+        }
+
+        MountImage MountSQLServerDev2017ISO {
+           ImagePath = "C:\config\SQLServer2017-x64-ENU-Dev.iso"
+            DriveLetter = "T"
+            Ensure = "Present"
+            DependsOn ="[Script]DownloadSQLServer2017DeveloperISO"
+
+        }
+
+      
+        SqlSetup InstallSQLServerDev2017SP
+        {
+            InstanceName          = 'SP'
+            Features              = 'SQLENGINE'
+            SQLCollation          = 'SQL_Latin1_General_CP1_CI_AS'
+            SQLSvcAccount         = $SQLServerAccount
+            AgtSvcAccount         = $SQLServerAccount
+            SQLSysAdminAccounts   = $DomainCredential.UserName, $SPSetupAccount.UserName
+            InstallSharedDir      = 'C:\SQL'
+            InstallSharedWOWDir   = 'C:\SQLx86'
+            InstanceDir           = 'C:\SQL\SP'
+            InstallSQLDataDir     = 'C:\SQL\SP\MSSQL\Data'
+            SQLUserDBDir          = 'C:\SQL\SP\MSSQL\Data'
+            SQLUserDBLogDir       = 'C:\SQL\SP\MSSQL\Data'
+            SQLTempDBDir          = 'C:\SQL\SP\MSSQL\Data'
+            SQLTempDBLogDir       = 'C:\SQL\SP\MSSQL\Data'
+            SQLBackupDir          = 'C:\SQL\SP\MSSQL\Backup'
+            SourcePath            = 'T:\'
+            UpdateEnabled         = 'False'
+            ForceReboot           = $false
+            BrowserSvcStartupType = 'Automatic'
+
+            PsDscRunAsCredential  = $SPSetupAccount
+
+            DependsOn             = '[MountImage]MountSQLServerDev2017ISO'
+        }
+
+        $SQLServerName = $env:COMPUTERNAME
+        
+        SqlServerMaxDop 'Set_SQLServerMaxDop_ToOne'
+        {
+            Ensure               = 'Present'
+            DynamicAlloc         = $false
+            MaxDop               = 1
+            ServerName           = $SQLServerName
+            InstanceName         = 'SP'
+            PsDscRunAsCredential = $SPSetupAccount
+            DependsOn        = "[SqlSetup]InstallSQLServerDev2017SP"
+        }
+
+        SqlServerNetwork 'ChangeTcpIpOnDefaultInstance'
+        {
+            InstanceName         = 'SP'
+            ProtocolName         = 'Tcp'
+            IsEnabled            = $true
+            TCPDynamicPort       = $false
+            TCPPort              = 1433
+            RestartService       = $true
+
+            PsDscRunAsCredential = $SPSetupAccount
+            DependsOn        = "[SqlSetup]InstallSQLServerDev2017SP"
+        }
+
+        #endregion
+
+        #region chocoPackages
+        
         cChocoInstaller installChoco
         {
             InstallDir = "c:\config\"
@@ -184,202 +269,8 @@
             #This will automatically try to upgrade if available, only if a version is not explicitly specified.
             AutoUpgrade = $True
         }
-         $sqlServerAccountName = $SQLServerAccount.UserName
-         $configIni = @"
-;SQL Server 2017 Configuration File
-[OPTIONS]
-
-; By specifying this parameter and accepting Microsoft R Open and Microsoft R Server terms, you acknowledge that you have read and understood the terms of use. 
-
-IACCEPTPYTHONLICENSETERMS="False"
-
-; Specifies a Setup work flow, like INSTALL, UNINSTALL, or UPGRADE. This is a required parameter. 
-
-ACTION="Install"
-
-; Specifies that SQL Server Setup should not display the privacy statement when ran from the command line. 
-
-SUPPRESSPRIVACYSTATEMENTNOTICE="False"
-
-; By specifying this parameter and accepting Microsoft R Open and Microsoft R Server terms, you acknowledge that you have read and understood the terms of use. 
-
-IACCEPTROPENLICENSETERMS="False"
-
-; Use the /ENU parameter to install the English version of SQL Server on your localized Windows operating system. 
-
-ENU="True"
-
-; Don't specify QUIET, QUIETSIMPLE or UIMODE as they are already supplied by SQLServer2017-SSEI-Dev.exe
-; QUIET="False"
-; Setup will display progress only, without any user interaction. 
-; QUIETSIMPLE="True"
-; Parameter that controls the user interface behavior. Valid values are Normal for the full UI,AutoAdvance for a simplied UI, and EnableUIOnServerCore for bypassing Server Core setup GUI block. 
-;UIMODE="Normal"
-
-; Specify whether SQL Server Setup should discover and include product updates. The valid values are True and False or 1 and 0. By default SQL Server Setup will include updates that are found. 
-
-UpdateEnabled="False"
-
-; If this parameter is provided, then this computer will use Microsoft Update to check for updates. 
-
-USEMICROSOFTUPDATE="False"
-
-; Specify the location where SQL Server Setup will obtain product updates. The valid values are "MU" to search Microsoft Update, a valid folder path, a relative path such as .\MyUpdates or a UNC share. By default SQL Server Setup will search Microsoft Update or a Windows Update service through the Window Server Update Services. 
-
-UpdateSource="MU"
-
-; Specifies features to install, uninstall, or upgrade. The list of top-level features include SQL, AS, IS, MDS, and Tools. The SQL feature will install the Database Engine, Replication, Full-Text, and Data Quality Services (DQS) server. The Tools feature will install shared components. 
-
-FEATURES=SQLENGINE
-
-; Displays the command line parameters usage 
-
-HELP="False"
-
-; Specifies that the detailed Setup log should be piped to the console. 
-
-INDICATEPROGRESS="False"
-
-; Specifies that Setup should install into WOW64. This command line argument is not supported on an IA64 or a 32-bit system. 
-
-X86="False"
-
-; Specify a default or named instance. MSSQLSERVER is the default instance for non-Express editions and SQLExpress for Express editions. This parameter is required when installing the SQL Server Database Engine (SQL), or Analysis Services (AS). 
-
-INSTANCENAME="SP"
-
-; Specify the root installation directory for shared components.  This directory remains unchanged after shared components are already installed. 
-
-INSTALLSHAREDDIR="C:\Program Files\Microsoft SQL Server"
-
-; Specify the root installation directory for the WOW64 shared components.  This directory remains unchanged after WOW64 shared components are already installed. 
-
-INSTALLSHAREDWOWDIR="C:\Program Files (x86)\Microsoft SQL Server"
-
-; Specify the Instance ID for the SQL Server features you have specified. SQL Server directory structure, registry structure, and service names will incorporate the instance ID of the SQL Server instance. 
-
-INSTANCEID="SP"
-
-; TelemetryUserNameConfigDescription 
-
-SQLTELSVCACCT="$($SQLServerAccount.UserName)"
-
-; TelemetryStartupConfigDescription 
-
-SQLTELSVCSTARTUPTYPE="Disabled"
-
-; Specify the installation directory. 
-
-INSTANCEDIR="C:\Program Files\Microsoft SQL Server"
-
-; Agent account name 
-
-AGTSVCACCOUNT="$($SQLServerAccount.UserName)"
-
-; Auto-start service after installation.  
-
-AGTSVCSTARTUPTYPE="Manual"
-
-; CM brick TCP communication port 
-
-COMMFABRICPORT="0"
-
-; How matrix will use private networks 
-
-COMMFABRICNETWORKLEVEL="0"
-
-; How inter brick communication will be protected 
-
-COMMFABRICENCRYPTION="0"
-
-; TCP port used by the CM brick 
-
-MATRIXCMBRICKCOMMPORT="0"
-
-; Startup type for the SQL Server service. 
-
-SQLSVCSTARTUPTYPE="Automatic"
-
-; Level to enable FILESTREAM feature at (0, 1, 2 or 3). 
-
-FILESTREAMLEVEL="0"
-
-; Set to "1" to enable RANU for SQL Server Express. 
-
-ENABLERANU="False"
-
-; Specifies a Windows collation or an SQL collation to use for the Database Engine. 
-
-SQLCOLLATION="SQL_Latin1_General_CP1_CI_AS"
-
-; Account for SQL Server service: Domain\User or system account. 
-
-SQLSVCACCOUNT="$($sqlServerAccount.UserName)"
-
-; Set to "True" to enable instant file initialization for SQL Server service. If enabled, Setup will grant Perform Volume Maintenance Task privilege to the Database Engine Service SID. This may lead to information disclosure as it could allow deleted content to be accessed by an unauthorized principal. 
-
-SQLSVCINSTANTFILEINIT="False"
-
-; Windows account(s) to provision as SQL Server system administrators. 
-
-; SQLSYSADMINACCOUNTS="domain\username"
-
-; The number of Database Engine TempDB files. 
-
-SQLTEMPDBFILECOUNT="8"
-
-; Specifies the initial size of a Database Engine TempDB data file in MB. 
-
-SQLTEMPDBFILESIZE="8"
-
-; Specifies the automatic growth increment of each Database Engine TempDB data file in MB. 
-
-SQLTEMPDBFILEGROWTH="64"
-
-; Specifies the initial size of the Database Engine TempDB log file in MB. 
-
-SQLTEMPDBLOGFILESIZE="8"
-
-; Specifies the automatic growth increment of the Database Engine TempDB log file in MB. 
-
-SQLTEMPDBLOGFILEGROWTH="64"
-
-; Provision current user as a Database Engine system administrator for %SQL_PRODUCT_SHORT_NAME% Express. 
-
-ADDCURRENTUSERASSQLADMIN="False"
-
-; Specify 0 to disable or 1 to enable the TCP/IP protocol. 
-
-TCPENABLED="1"
-
-; Specify 0 to disable or 1 to enable the Named Pipes protocol. 
-
-NPENABLED="0"
-
-; Startup type for Browser Service. 
-
-BROWSERSVCSTARTUPTYPE="Disabled"
-"@
-         Set-Item -Path WSMan:\localhost\MaxEnvelopeSizeKb -Value 2048
-        if(-not (Test-Path "C:\config")) {
-            New-Item -Path "C:\" -Name "config" -ItemType "Directory" -Force
-        }
-        If(Test-Path "C:\config\configurationFile.ini") {
-            Remove-Item -Path "C:\config\configurationFile.ini"
-        }
-        $configIni | Out-File "C:\config\configurationFile.ini" -Encoding utf8 -Append:$false -Force:$true -NoClobber -Confirm:$false
-         
-        
-        $sqlParameters = @(
-            "ConfigurationFile:C:\Config\configurationFile.ini"
-            "SQLSYSADMINACCOUNTS:$($SPSetupAccount.UserName) $($DomainCredential.UserName)"
-            "AGTSVCPASSWORD:$($SQLServerAccount.GetNetworkCredential().Password)"
-            "SQLSVCPASSWORD:$($SQLServerAccount.GetNetworkCredential().Password)"
-            "SQLTELSVCPASSWORD:$($SQLServerAccount.GetNetworkCredential().Password)"
-            "TCPENABLED:1"
-        )
-        $sqlParams = "'" + (($sqlParameters | foreach-object { "/$($_) " }) -join "").trim() + "'"
- 
+        <# 
+        #Removed - as it was unreliable
         cChocoPackageInstaller installSQL2017
         {
             Name        = "sql-server-2017"
@@ -387,7 +278,9 @@ BROWSERSVCSTARTUPTYPE="Disabled"
             Params      = $sqlParams
             #This will automatically try to upgrade if available, only if a version is not explicitly specified.
             AutoUpgrade = $True
-            PsDscRunAsCredential = $SPSetupAccount        }
+            PsDscRunAsCredential = $SPSetupAccount        
+        }
+        #>
 
         cChocoPackageInstaller installVS2017 
         {
@@ -483,7 +376,9 @@ BROWSERSVCSTARTUPTYPE="Disabled"
             AutoUpgrade = $true
 
         }
+        #endregion
         
+        #region SharePointInstall     
         Script Download2016ISO {
             GetScript = {
                 @{ Result = (Test-Path "C:\config\officeserver.iso")}    
@@ -522,39 +417,6 @@ BROWSERSVCSTARTUPTYPE="Disabled"
         }
         
 
-        xSQLServerMaxDop SetMAXDOP {
-            Ensure          = "Present"
-            SQLInstanceName = "SP"
-            DynamicAlloc    = $false
-            MaxDop          = 1
-            PsDscRunAsCredential     = $SPSetupAccount
-        }
-
-        SqlServerNetwork 'ChangeTcpIpOnDefaultInstance'
-        {
-            InstanceName         = 'SP'
-            ProtocolName         = 'Tcp'
-            IsEnabled            = $true
-            TCPDynamicPort       = $false
-            TCPPort              = 1433
-            RestartService       = $true
-             PsDscRunAsCredential     = $SPSetupAccount
-        }
-
-        Firewall AddFirewallRule
-        {
-            Name                  = 'SQLFirewallRule'
-            DisplayName           = 'Firewall Rule for SQLServer'
-            Group                 = 'SQL Firewall Rule Group'
-            Ensure                = 'Present'
-            Enabled               = 'True'
-            Profile               = ('Domain', 'Private')
-            Direction             = 'InBound'
-            LocalPort             = ('1433', '1434')
-            Protocol              = 'TCP'
-            Description           = 'Firewall Rule for Notepad.exe'
-        }
-
 
         #**********************************************************
         # Basic farm configuration
@@ -563,7 +425,7 @@ BROWSERSVCSTARTUPTYPE="Disabled"
         # provisions generic services and components used by the
         # whole farm
         #**********************************************************
-        $SQLServerName = $env:COMPUTERNAME
+        
 
         SPFarm CreateSPFarm
         {
@@ -798,13 +660,50 @@ BROWSERSVCSTARTUPTYPE="Disabled"
             DependsOn             = "[SPServiceAppPool]MainServiceAppPool"
         }   
 
+        #endregion
+
+        #region WindowsFirewall
+          Firewall OpenSQLServerPort1433
+        {
+            Name                  = 'SQLServerTCP'
+            DisplayName           = 'SQL Server 1433, 1434'
+            Group                 = 'SharePointDev'
+            Ensure                = 'Present'
+            Enabled               = 'True'
+            Profile               = ('Domain', 'Private')
+            Direction             = 'InBound'
+            LocalPort             = ('1433','1434')
+            Protocol              = 'TCP'
+            Description           = 'Open SQL Server Port'
+            DependsOn             = '[SqlServerNetwork]ChangeTcpIpOnDefaultInstance'
+
+        }
+
+          Firewall OpenSharePointIISPort80
+        {
+            Name                  = 'SharePointTCP'
+            DisplayName           = 'SharePoint Server 80,9999'
+            Group                 = 'SharePointDev'
+            Ensure                = 'Present'
+            Enabled               = 'True'
+            Profile               = ('Domain', 'Private')
+            Direction             = 'InBound'
+            LocalPort             = ('80','9999')
+            Protocol              = 'TCP'
+            Description           = 'Open SharePoint Server Port'
+            DependsOn             = @('[SPWebApplication]SharePointSites','[SPFarm]CreateSPFarm')
+
+        }
+
+        
+        #endregion
     }
 
 
 }
 
 
-<#
+
 $ConfigurationData = @{
     AllNodes = @(
         @{
@@ -814,8 +713,8 @@ $ConfigurationData = @{
         }
     )
 }
-
-$password                   = [System.Web.Security.Membership]::GeneratePassword(12,2)
+<#
+$password = [System.Web.Security.Membership]::GeneratePassword(12,2)
 
 Write-Host "Remember this password : $($password)"
 
@@ -834,6 +733,6 @@ SharePointDev -DomainName "DEV.LOC" -DomainCredential $domainCredential -FarmAcc
 -WebPoolManagedAccount $webPoolManagedAccount -ServicePoolManagedAccount $servicePoolManagedACcount -Passphrase $passphrase -safeModePassword $safeModePassword `
 -ConfigurationData $ConfigurationData
 
-Start-DscConfiguration -Path .\SharePointDev -Wait -Force -Verbose 
+Start-DscConfiguration -Path .\SharePointDev -Wait -Force 
 #>
 #SharePointDev -domainName dev.loc -safeModePassword $safeModeCred -credential $credential -ConfigurationData $configData
