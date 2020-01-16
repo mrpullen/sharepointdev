@@ -538,7 +538,7 @@
         SPSite TeamSite
         {
             Url                      = "$($sharePointUrl)"
-            OwnerAlias               = $SPSetupAccount.UserName
+            OwnerAlias               = $DomainCredential.UserName
             Name                     = "DSC Demo Site"
             Template                 = "STS#0"
             PsDscRunAsCredential     = $SPSetupAccount
