@@ -209,7 +209,7 @@
             "location": "[resourceGroup().location]",
             "dependsOn": [
                 "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]",
-                "[resourceId('Microsoft.Storage/sorageAccounts', variables('diagnosticsStorageAccountName'))]"
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('diagnosticsStorageAccountName'))]"
             ],
             "properties": {
                 "hardwareProfile": {
