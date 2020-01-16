@@ -172,8 +172,6 @@
             Ensure      = 'Present'
         }
 
-        Reboot
-
         #endregion
     
 
