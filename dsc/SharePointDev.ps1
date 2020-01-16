@@ -90,7 +90,7 @@
         ADUser SQLAccount {
             DomainName = $domain
             UserName   = $SQLServerAccount.UserName.Split("\")[1]
-            Password   = $SQLServerAccountv
+            Password   = $SQLServerAccount
             Path       = $ldapServiceAccountPath
             ChangePasswordAtLogon = $false
             PasswordNeverExpires = $true
@@ -171,6 +171,8 @@
             MembersToInclude = @($FarmAccount.UserName.Split("\")[1], $SPSetupAccount.UserName.Split("\")[1], $SQLServerAccount.UserName.Split("\")[1])
             Ensure      = 'Present'
         }
+
+        Reboot
 
         #endregion
     
