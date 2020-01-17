@@ -253,7 +253,7 @@
         }
 
         #endregion
-
+        <#
         #region chocoPackages
         
         cChocoInstaller installChoco
@@ -365,7 +365,7 @@
 
         }
         #endregion
-        
+        #>
         #region SharePointInstall     
         Script Download2016ISO {
             GetScript = {
